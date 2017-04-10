@@ -1,0 +1,47 @@
+#!/bin/bash
+#        Copyright 2016 Carter Kindley.
+#        Authored by Carter Kindley.
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+echo -n "Setting kernel to `eselect kernel list  | tail -n1`"
+echo -e "\n"
+eselect kernel set `eselect kernel list  | tail -n1 | cut -d "[" -f2 | cut -d "]" -f1`
+NEWVER=`eselect kernel list  | tail -n1 | cut -d "-" -f2`
+cd /usr/src/linux
+echo -n "Do you need to pull configs from your old running kernel? "
+read oldconfig
+echo "$oldconfig"
+if [ "$oldconfig" == "y" ]; then
+        echo -n "Dumping running config."
+        zcat /proc/config.gz > /usr/src/linux/.config
+        make oldconfig
+fi
+if [ -f /usr/src/linux/.config ]; then
+        make -j8
+        make -j8 modules modules_install
+        emerge @module-rebuild
+        mount /boot
+        cp /usr/src/linux/arch/x86_64/boot/bzImage /boot/vmlinuz-$NEWVER-gentoo
+        ln -sfn /boot/vmlinuz-$NEWVER-gentoo /boot/vmlinuz-current-gentoo
+        grub-mkconfig -o /boot/grub/grub.cfg
+        echo "Reboot now?"
+        read CMD
+        if [ "$CMD" == "y" ]; then
+                shutdown -r now
+        fi
+        echo "Complete."
+        exit 0
+else
+        echo -n "No config found. Exiting."
+        exit 1
+fi
