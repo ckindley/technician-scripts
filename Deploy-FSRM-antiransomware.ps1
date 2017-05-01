@@ -39,12 +39,12 @@ $adminEmail = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the admin ema
 # Prompt for user account name.
 $fromEmail = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the sending address:", "From Email", "")
 Set-FsrmSetting -AdminEmailAddress $adminEmail -FromEmailAddress $fromEmail -SmtpServer $smtpServer | Out-File $logPath -Append
-new-FsrmFileGroup -name "Anti-Ransomware File Groups" -IncludePattern @((Invoke-WebRequest -Uri "https://fsrm.experiant.ca/api/v1/combined").content | convertfrom-json | % {$_.filters}) | Out-File $logPath -Append
+new-FsrmFileGroup -name "Anti-Ransomware File Groups" -IncludePattern @((Invoke-WebRequest -UseBasicParsing -Uri "https://fsrm.experiant.ca/api/v1/combined").content | convertfrom-json | % {$_.filters}) | Out-File $logPath -Append
 $Action = New-FsrmAction -Type Email -MailTo "[Admin Email]" -Subject "Ransomware file detected" -Body "User [Source Io Owner] attempted to save [Source File Path] to [File Screen Path] on [Server]. This appears to be a ransomware action."
 New-FsrmFileScreenTemplate -Name "Ransomware Block" -IncludeGroup "Anti-Ransomware File Groups" -Notification $Action -Active | Out-File $logPath -Append
 # Initialize parameters for scheduled task.
 $task = New-ScheduledTaskAction -Execute 'Powershell.exe'`
-		-Argument '-NoProfile -WindowStyle Hidden -command "& {Set-FsrmFileGroup -name \"Anti-Ransomware File Groups\" -IncludePattern @((Invoke-WebRequest -Uri \"https://fsrm.experiant.ca/api/v1/combined\").content | convertfrom-json | % {$_.filters}) } " '
+		-Argument '-NoProfile -WindowStyle Hidden -command "& {Set-FsrmFileGroup -name \"Anti-Ransomware File Groups\" -IncludePattern @((Invoke-WebRequest -UseBasicParsing -Uri \"https://fsrm.experiant.ca/api/v1/combined\").content | convertfrom-json | % {$_.filters}) } " '
 $trigger = New-ScheduledTaskTrigger -Daily -At 1am
 Register-ScheduledTask -Action $task -Trigger $trigger -TaskName "UpdateRWDefs" -Description "Daily update of Ransomware definitions"
 		}
